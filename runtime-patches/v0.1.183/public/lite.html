@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#fff1de" />
+    <title>Agent Office</title>
+    <link rel="icon" href="/favicon.svg" />
+    <script type="module" crossorigin src="/assets/lite-HMCPwdQ-.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-P2Xu9kJm.js">
+    <link rel="modulepreload" crossorigin href="/assets/dom-CmHJFyEo.js">
+    <link rel="modulepreload" crossorigin href="/assets/purify.es--06brOip.js">
+    <link rel="modulepreload" crossorigin href="/assets/ask-BZ5WB_mF.js">
+    <link rel="stylesheet" crossorigin href="/assets/ask-DahAgfV_.css">
+    <link rel="stylesheet" crossorigin href="/assets/lite-DSwRnFsb.css">
+    <script type="module" crossorigin src="/assets/lite-limits.js"></script>
+    <script type="module" crossorigin src="/assets/lite-health.js"></script>
+    <script type="module" crossorigin src="/assets/lite-activity.js"></script>
+  </head>
+  <body class="lite">
+    <!-- The 2D view (lite.ts): the office without the 3D, for a phone or a computer the 3D is too much for. -->
+    <header class="lite-bar">
+      <label class="lite-floor" title="The floor you're on: pick another to see its workers">
+        <span class="lite-floor-label">Floor</span>
+        <select id="floor" aria-label="Floor"></select>
+      </label>
+      <a id="to-3d" class="btn" href="/?3d=1" title="The 3D office, where you walk around">🏢 3D</a>
+    </header>
+    <main class="lite-main">
+      <p id="floor-meta" class="lite-meta"></p>
+      <div id="elsewhere" class="lite-elsewhere hidden"></div>
+      <h2 class="lite-h">Workers <span id="waiting-now" class="lite-waiting"></span></h2>
+      <ul id="workers" class="lite-workers"></ul>
+    </main>
+    <nav class="lite-nav" aria-label="Office">
+      <button id="btn-issues" class="btn" type="button">📌 Issues <span class="n"></span></button>
+      <button id="btn-pulls" class="btn" type="button">🔀 PRs <span class="n"></span></button>
+      <button id="btn-queue" class="btn" type="button">📋 Queue <span class="n"></span></button>
+      <button id="btn-limits" class="btn" type="button">📊 Limits</button>
+      <button id="btn-health" class="btn" type="button">🏢 Health</button>
+      <button id="btn-activity" class="btn" type="button">📜 Activity</button>
+      <button id="btn-new" class="btn primary" type="button">✨ New task</button>
+    </nav>
+    <div id="toasts"></div>
+    <div id="conn" class="conn hidden">Reconnecting…</div>
+    <div id="modal-root"></div>
+  </body>
+</html>
