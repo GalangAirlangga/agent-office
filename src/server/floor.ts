@@ -8,6 +8,7 @@ import type { FloorDef } from './building.js';
 import { excludeFromGit } from './config.js';
 import { agentProviders, configuredProvider } from './agents.js';
 import { WorkerManager, workedMs, type HookEnv, type RunAs } from './workers.js';
+import { seedRoles, type Roles } from './roles.js';
 import { GitHub, MergeWatch } from './github.js';
 import type { GhAs } from './signins.js';
 import { TaskQueue } from './queue.js';
@@ -135,6 +136,8 @@ export class Floor {
   readonly garage = new Garage();
   /** Workers sent home on a map that locks them up (see MapPlan.sendHome). */
   readonly jail: Jail;
+  /** The project's role registry (see roles.ts). */
+  readonly roles: Roles;
   private timer: NodeJS.Timeout;
   /** Pull requests merging, to ring the gong for. */
   private merges = new MergeWatch();
@@ -152,13 +155,17 @@ export class Floor {
     const dataDir = path.join(def.dir, '.agent-office');
     mkdirSync(dataDir, { recursive: true, mode: 0o700 });
     excludeFromGit(def.dir);
-    this.project = projectInfo(def.dir, def.name, ctx.agentCmd, ctx.agentArgs);
+    this.roles = seedRoles(dataDir);
+    this.project = {
+      ...projectInfo(def.dir, def.name, ctx.agentCmd, ctx.agentArgs),
+      roleChoices: this.roles.choices(),
+    };
     this.docs = new Docs(def.dir);
     // Before the workers and the dog: the back office's desks are only there once it's built.
     this.plan = new FloorPlanStore(dataDir);
     this.jail = new Jail(dataDir);
 
-    // Before the workers, so it hears about the ones who wake up needing input.
+    // Before the workers, so it hears about the ones that wake up needing input.
     this.dog = new Dog(def.id, dataDir, {
       workers: () => this.workers?.list() ?? [],
       people: () => ctx.peers(this),

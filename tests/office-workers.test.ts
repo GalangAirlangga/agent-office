@@ -297,6 +297,21 @@ test('reads send-home and hire requests', () => {
   assert.match(readHireRequest({ prompt: 'x', issue: 0 }, [...providers]) as string, /issue/);
 });
 
+test("HireRequest validates role field", () => {
+  const providers = ['claude', 'codex'] as const;
+  // valid role passes through as-is (existence check is in manager.spawn / WS handler)
+  assert.deepEqual(readHireRequest({ prompt: 'x', role: 'qa' }, [...providers]), {
+    prompt: 'x',
+    role: 'qa',
+  });
+  // role not string
+  assert.match(readHireRequest({ prompt: 'x', role: 42 }, [...providers]) as string, /role is a name from roles\.json/);
+  // empty string
+  assert.match(readHireRequest({ prompt: 'x', role: '' }, [...providers]) as string, /role is a name from roles\.json/);
+  // too long
+  assert.match(readHireRequest({ prompt: 'x', role: 'a'.repeat(65) }, [...providers]) as string, /name from roles\.json/);
+});
+
 test("Codex is told to pass the office's variables on to the MCP server", () => {
   const args = codexMcpArgs('/opt/app/bin/office-workers.js');
   assert.deepEqual(args.filter((_, i) => i % 2 === 0), ['-c', '-c', '-c']);
