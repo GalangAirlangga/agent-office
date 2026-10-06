@@ -188,6 +188,10 @@ export class Floor {
           this.queue?.onWorker(worker);
           this.meetings?.onWorker(worker);
           this.dog.onWorker(worker);
+          if (worker.status === 'done' || worker.status === 'exited' || worker.status === 'offline') {
+            for (const proposal of this.proposals.list()) this.proposals.workerTask(proposal.id, worker.id, worker.status === 'done' ? 'done' : 'failed');
+            ctx.emit(this, { t: 'proposals', state: { proposals: this.proposals.list() }, roles: this.roles.choices() });
+          }
           ctx.workerChanged(this, worker);
           // Its turn ended, or whoever had its terminal open closed it: it may be free to go now.
           this.sendLandedHome();
@@ -222,14 +226,19 @@ export class Floor {
         ctx.emit(this, { t: 'gh.issues', state });
         if (state.loading || state.error) return;
         for (const issue of state.items) {
-          if (issue.state !== 'OPEN' || !issue.labels.some((label) => label.name === 'agent-office:pm') || this.proposals.hasActiveIssue(issue.number)) continue;
+          if (issue.state !== 'OPEN' || !issue.labels.some((label) => label.name === 'agent-office:pm') || !Number.isSafeInteger(issue.number) || issue.number < 1 || this.proposals.hasActiveIssue(issue.number)) continue;
+          const title = String(issue.title || '').trim().slice(0, 200);
+          const body = String(issue.body || title).trim().slice(0, 19_700);
+          const sourceKey = `issue:${issue.number}:${String(issue.updatedAt || '').slice(0, 100)}`;
+          const role = this.roles.names().includes('dev') ? 'dev' : this.roles.names()[0];
+          if (!title || !body || !role) continue;
           const created = this.proposals.create({
             source: 'github-issue',
-            sourceKey: `issue:${issue.number}:${issue.updatedAt}`,
+            sourceKey,
             issue: issue.number,
-            title: issue.title,
-            input: issue.body || issue.title,
-            tasks: [{ prompt: `Work on GitHub issue #${issue.number}: ${issue.title}\n\n${issue.body || 'Read the issue and propose the smallest complete change.'}`, role: this.roles.names().includes('dev') ? 'dev' : this.roles.names()[0] ?? '' }],
+            title,
+            input: body,
+            tasks: [{ prompt: `Work on GitHub issue #${issue.number}: ${title}\n\n${body}`, role }],
             createdBy: 'GitHub',
           }, this.roles.all());
           if (typeof created !== 'string') ctx.emit(this, { t: 'proposals', state: { proposals: this.proposals.list() }, roles: this.roles.choices() });

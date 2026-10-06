@@ -99,8 +99,9 @@ export class TaskNamer {
 
   private async generate(ctx: TaskContext): Promise<WorkerTask | null> {
     if (!this.enabled) return null;
-    const out = await run(this.claude!, this.env, this.system(), describe(ctx));
-    const task = out === null ? null : parse(out);
+    const out = await runStructured(this.claude!, this.env, this.system(), describe(ctx), SCHEMA);
+    const task = out === null ? null : parseStructured<WorkerTask>(out);
+    if (task && (typeof task.name !== 'string' || typeof task.summary !== 'string' || !task.name.trim() || !task.summary.trim())) return null;
     if (task) this.fails = 0;
     else if (++this.fails >= FAILS_BEFORE_BACKOFF) {
       this.fails = 0;
@@ -126,12 +127,12 @@ function describe(ctx: TaskContext): string {
   return parts.join('\n\n');
 }
 
-function run(claude: string, env: Record<string, string>, system: string, input: string): Promise<string | null> {
+export function runStructured(claude: string, env: Record<string, string>, system: string, input: string, schema: string, model = 'haiku'): Promise<string | null> {
   const args = [
     '-p',
-    '--model', 'haiku',
+    '--model', model,
     '--output-format', 'json',
-    '--json-schema', SCHEMA,
+    '--json-schema', schema,
     '--system-prompt', system,
     '--tools', '',
     // Not the user's or the project's settings: no hooks, no MCP servers, no plugins, no transcript.
@@ -149,18 +150,34 @@ function run(claude: string, env: Record<string, string>, system: string, input:
       clearTimeout(timer);
       resolve(v);
     };
-    const child = spawn(claude, args, {
-      // A neutral directory, so it doesn't pick up the project's CLAUDE.md.
-      cwd: os.tmpdir(),
-      env: { ...env, MAX_THINKING_TOKENS: '0' },
-      stdio: ['pipe', 'pipe', 'ignore'],
-    });
+    let child: ReturnType<typeof spawn>;
+    try {
+      child = spawn(claude, args, {
+        cwd: os.tmpdir(),
+        env: { ...env, MAX_THINKING_TOKENS: '0' },
+        stdio: ['pipe', 'pipe', 'ignore'],
+      });
+    } catch {
+      resolve(null);
+      return;
+    }
     const timer = setTimeout(() => {
       child.kill('SIGKILL');
       finish(null);
     }, TIMEOUT_MS);
+    if (!child.stdout || !child.stdin) {
+      child.kill('SIGKILL');
+      resolve(null);
+      return;
+    }
     child.stdout.setEncoding('utf8');
-    child.stdout.on('data', (d: string) => (out += d));
+    child.stdout.on('data', (d: string) => {
+      out += d;
+      if (out.length > 1_000_000) {
+        child.kill('SIGKILL');
+        finish(null);
+      }
+    });
     child.on('error', () => finish(null));
     child.on('close', (code) => finish(code === 0 ? out : null));
     child.stdin.on('error', () => {});
@@ -168,15 +185,13 @@ function run(claude: string, env: Record<string, string>, system: string, input:
   });
 }
 
-function parse(out: string): WorkerTask | null {
+export function parseStructured<T>(out: string): T | null {
   try {
     const res = JSON.parse(out);
     if (res?.is_error) return null;
     let v = res?.structured_output;
     if (!v && typeof res?.result === 'string') v = JSON.parse(res.result.replace(/^```(json)?|```$/g, ''));
-    const name = clip(String(v?.name ?? '').replace(/^["'\s]+|["'.\s]+$/g, ''), NAME_MAX);
-    const summary = clip(String(v?.summary ?? '').replace(/^["'\s]+|["'\s]+$/g, '').replace(/\.$/, ''), SUMMARY_MAX);
-    return name && summary ? { name, summary } : null;
+    return v && typeof v === 'object' ? v as T : null;
   } catch {
     return null;
   }
