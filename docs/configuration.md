@@ -83,3 +83,11 @@ works in the project edits the roles to say what each tells its worker:
 Pick a role in the hire dialog and the worker starts with that role's brief before its
 task. A floor with no registry (or a role it doesn't have) hires exactly as it used to:
 a role is a briefing, never a requirement.
+
+## PM proposals
+
+Open **PM proposals** from the office menu to submit a task and choose a worker role.
+The proposal stays pending until an admin approves it. Approval adds role-aware work to
+the task queue; rejection creates no worker and does not claim a GitHub issue. This manual
+approval flow is enabled now. GitHub issue auto-triggering, worker reuse, and LLM task
+splitting are follow-up work, not automatic behavior in this release.

@@ -47,6 +47,7 @@ export class Roles {
       mtime = statSync(this.file).mtimeMs;
     } catch {
       this.mtime = 0;
+      this.roles = new Map();
       return this.roles;
     }
     if (mtime === this.mtime) return this.roles;
@@ -85,9 +86,11 @@ export class Roles {
     const out = new Map<string, RoleSpec>();
     // A role with no brief says nothing, so it isn't one: skip it rather than start a worker on a blank.
     for (const [id, spec] of Object.entries((parsed ?? {}) as Record<string, unknown>)) {
+      const key = id.trim();
       const { brief, skills } = (spec ?? {}) as Partial<RoleSpec>;
-      if (typeof brief !== 'string' || !brief.trim()) continue;
-      out.set(id.trim(), { brief: brief.trim(), ...(Array.isArray(skills) ? { skills: skills.filter((s): s is string => typeof s === 'string') } : {}) });
+      if (!key || typeof brief !== 'string' || !brief.trim()) continue;
+      const cleanSkills = Array.isArray(skills) ? skills.filter((s): s is string => typeof s === 'string' && !!s.trim()).map((s) => s.trim()) : undefined;
+      out.set(key, { brief: brief.trim(), ...(cleanSkills?.length ? { skills: cleanSkills } : {}) });
     }
     return out;
   }

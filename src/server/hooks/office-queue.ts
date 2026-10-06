@@ -28,7 +28,7 @@ export async function officeQueue(ctx: Ctx, req: http.IncomingMessage, res: http
     return err ? send(res, 400, { error: err }) : send(res, 200, view());
   }
   if (req.method !== 'POST') return send(res, 405, { error: 'GET, POST or DELETE' });
-  let body: { prompt?: unknown; title?: unknown; issue?: unknown };
+  let body: { prompt?: unknown; title?: unknown; issue?: unknown; role?: unknown; proposalId?: unknown };
   try {
     body = JSON.parse(await readBody(req));
   } catch {
@@ -36,7 +36,9 @@ export async function officeQueue(ctx: Ctx, req: http.IncomingMessage, res: http
   }
   const issue = Number.isInteger(body?.issue) && (body.issue as number) > 0 ? (body.issue as number) : undefined;
   // Its tasks run as whoever the board agent runs as.
-  const err = floor.queue.add(str(body?.prompt, 20000), agent.name, str(body?.title, 200) || undefined, issue, undefined, undefined, undefined, floor.workers.ownerOf(agent.id));
+  const role = typeof body?.role === 'string' && body.role.trim() ? body.role.trim() : undefined;
+  if (role && !floor.roles.names().includes(role)) return send(res, 400, { error: `Unknown worker role: ${role}` });
+  const err = floor.queue.add(str(body?.prompt, 20000), agent.name, str(body?.title, 200) || undefined, issue, undefined, undefined, undefined, floor.workers.ownerOf(agent.id), role, typeof body?.proposalId === 'string' ? body.proposalId : undefined);
   if (err) return send(res, 400, { error: err });
   const task = floor.queue.state().tasks.at(-1)!;
   ctx.toastFloor(floor, `📋 The ${agent.name} queued ${issue !== undefined ? `issue #${issue}` : `“${task.title}”`}`);

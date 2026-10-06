@@ -14,10 +14,10 @@ function fixture(defaultProvider: AgentProvider = 'claude') {
     defaultProvider,
     list: () => workers,
     deskOccupied: (desk) => workers.some((w) => w.deskId === desk),
-    spawn(deskId, by, prompt, worktree, kind, provider, model, effort) {
+    spawn(deskId, by, prompt, worktree, kind, provider, model, effort, _meeting, _owner, _repos, _via, role) {
       const id = `worker-${hired++}`;
       const worker: WorkerInfo = {
-        id, deskId, kind, provider, model, effort, prompt, name: 'Test',
+        id, deskId, kind, provider, model, effort, role, prompt, name: 'Test',
         color: '#ffffff', status: 'working', acked: false, createdBy: by,
         createdAt: Date.now(), cols: 80, rows: 24, viewers: [], viewerIds: [],
         worktree: worktree ? { path: `.agent-office/worktrees/${id}`, branch: `office/${id}`, base: 'abc' } : undefined,
@@ -44,6 +44,18 @@ function fixture(defaultProvider: AgentProvider = 'claude') {
   };
   return { dir, workers, open, emptied: () => emptied, close() { queues.forEach((q) => q.shutdown()); rmSync(dir, { recursive: true, force: true }); } };
 }
+
+test('queue preserves role and proposal metadata through seat and retry', (t) => {
+  const f = fixture(); t.after(() => f.close());
+  const q = f.open();
+  assert.equal(q.add('Fix login', 'PM', 'Login', undefined, 'claude', undefined, undefined, undefined, 'qa', 'proposal-1'), undefined);
+  assert.equal(f.workers[0].role, 'qa');
+  f.workers[0].status = 'done'; q.onWorker(f.workers[0]);
+  const task = q.state().tasks[0];
+  assert.equal(task.proposalId, 'proposal-1');
+  assert.equal(q.retry(task.id), undefined);
+  assert.equal(f.workers[1].role, 'qa');
+});
 
 test('queue seats the selected provider and preserves it through completion and retry', (t) => {
   const f = fixture(); t.after(() => f.close());

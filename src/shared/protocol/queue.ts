@@ -12,6 +12,12 @@ export interface QueueTask {
   model?: string;
   /** Reasoning effort requested for this task, when one was chosen (Claude only). */
   effort?: AgentEffort;
+  /** Role passed to the worker when this task is seated. */
+  role?: string;
+  /** Proposal that approved this task, when PM orchestration created it. */
+  proposalId?: string;
+  /** Stable subtask ID, used to make approval replay idempotent. */
+  proposalTaskId?: string;
   /** The GitHub issue it came from, when it did. */
   issue?: number;
   title: string;
@@ -42,7 +48,7 @@ export interface QueueState {
 }
 
 export type QueueClientMsg =
-  | { t: 'queue.add'; prompt: string; title?: string; issue?: number; provider?: AgentProvider; model?: string; effort?: AgentEffort }
+  | { t: 'queue.add'; prompt: string; title?: string; issue?: number; provider?: AgentProvider; model?: string; effort?: AgentEffort; role?: string; proposalId?: string }
   | { t: 'queue.remove'; taskId: string }
   /** Move a queued task up (-1) or down (+1) the queue. */
   | { t: 'queue.move'; taskId: string; delta: number }

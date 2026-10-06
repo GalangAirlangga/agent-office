@@ -315,8 +315,7 @@ export class WorkerManager {
     w.info.status = 'starting';
     w.info.exitCode = undefined;
     const station = DESK_BY_ID.get(w.info.deskId)?.station;
-    // A board agent with no session to carry on starts over, so it needs telling what it's for again.
-    const first = prompt && station && !w.info.sessionId ? `${stationBrief(station, this.prompts)}\n\n${prompt}` : prompt;
+    const first = prompt && !w.info.sessionId ? briefedPrompt(this.roles, w.info.role, prompt, station ? stationBrief(station, this.prompts) : undefined) : prompt;
     if (prompt) {
       w.info.activity = truncate(prompt, 80);
       this.tasks.notePrompt(w, prompt);

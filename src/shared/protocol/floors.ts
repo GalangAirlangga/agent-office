@@ -105,6 +105,7 @@ export interface FloorView {
   issues: GhState<GhIssue>;
   pulls: GhState<GhPull>;
   queue: QueueState;
+  proposals: import('./proposals.js').ProposalState;
   /** Pictures on this floor's walls. */
   decor: Decoration[];
   /** The signs over this floor's desks, and how far its back office is built out. */

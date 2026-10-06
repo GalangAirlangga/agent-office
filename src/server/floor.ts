@@ -12,6 +12,7 @@ import { seedRoles, type Roles } from './roles.js';
 import { GitHub, MergeWatch } from './github.js';
 import type { GhAs } from './signins.js';
 import { TaskQueue } from './queue.js';
+import { ProposalStore } from './proposals.js';
 import { Changes } from './changes.js';
 import { Decor } from './decor.js';
 import { FloorPlanStore } from './floorplan.js';
@@ -116,6 +117,7 @@ export class Floor {
   readonly workers: WorkerManager;
   readonly github: GitHub;
   readonly queue: TaskQueue;
+  readonly proposals: ProposalStore;
   readonly changes: Changes;
   readonly decor: Decor;
   /** The signs over its desks, and how far its back office is built out. */
@@ -216,7 +218,23 @@ export class Floor {
 
     this.github = new GitHub(
       def.dir,
-      (state) => ctx.emit(this, { t: 'gh.issues', state }),
+      (state) => {
+        ctx.emit(this, { t: 'gh.issues', state });
+        if (state.loading || state.error) return;
+        for (const issue of state.items) {
+          if (issue.state !== 'OPEN' || !issue.labels.some((label) => label.name === 'agent-office:pm') || this.proposals.hasActiveIssue(issue.number)) continue;
+          const created = this.proposals.create({
+            source: 'github-issue',
+            sourceKey: `issue:${issue.number}:${issue.updatedAt}`,
+            issue: issue.number,
+            title: issue.title,
+            input: issue.body || issue.title,
+            tasks: [{ prompt: `Work on GitHub issue #${issue.number}: ${issue.title}\n\n${issue.body || 'Read the issue and propose the smallest complete change.'}`, role: this.roles.names().includes('dev') ? 'dev' : this.roles.names()[0] ?? '' }],
+            createdBy: 'GitHub',
+          }, this.roles.all());
+          if (typeof created !== 'string') ctx.emit(this, { t: 'proposals', state: { proposals: this.proposals.list() }, roles: this.roles.choices() });
+        }
+      },
       (state) => {
         ctx.emit(this, { t: 'gh.pulls', state });
         this.queue?.onPulls(state.items);
@@ -232,6 +250,7 @@ export class Floor {
       },
     );
     // The 📋 task queue seats workers by itself: it watches the workers and links PRs from GitHub.
+    this.proposals = new ProposalStore(dataDir);
     this.queue = new TaskQueue(dataDir, this.workers, !!this.project.branch, {
       update: (state) => {
         ctx.emit(this, { t: 'queue', state });
@@ -251,6 +270,10 @@ export class Floor {
         ctx.emit(this, { t: 'gong', why: 'queue' });
       },
       worktreeNote: () => officePrompt(ctx.prompts, 'queue.worktree'),
+      proposalTask: (proposalId, proposalTaskId, outcome, error) => {
+        this.proposals.markTask(proposalId, proposalTaskId, outcome, error);
+        ctx.emit(this, { t: 'proposals', state: { proposals: this.proposals.list() }, roles: this.roles.choices() });
+      },
     });
 
     // Meetings seat their own workers round the meeting room's table and run them round by round.
