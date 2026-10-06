@@ -26,6 +26,7 @@ export interface Proposal {
   status: ProposalStatus;
   createdBy: string;
   approvedBy?: string;
+  owner?: string;
   error?: string;
   createdAt: number;
   updatedAt: number;
@@ -39,6 +40,7 @@ export interface ProposalInput {
   input: string;
   tasks: Array<{ prompt: string; role: string; target?: string }>;
   createdBy: string;
+  owner?: string;
 }
 
 const MAX_INPUT = 20_000;
@@ -75,6 +77,7 @@ export class ProposalStore {
       tasks: input.tasks.map((task, i) => ({ id: `${i + 1}`, prompt: task.prompt.trim(), role: task.role.trim(), ...(task.target ? { target: task.target.trim() } : {}), status: 'pending' })),
       status: 'pending',
       createdBy: input.createdBy,
+      ...(input.owner ? { owner: input.owner } : {}),
       createdAt: now,
       updatedAt: now,
     };

@@ -24,6 +24,7 @@ export const proposalHandlers = {
       input,
       tasks: [{ prompt: input, role }],
       createdBy: c.accountId ?? c.peer.name,
+      ...(c.accountId ? { owner: c.accountId } : {}),
     }, floor.roles.all());
     if (typeof created === 'string') return ctx.warn(c, created);
     ctx.toFloor(floor, { t: 'proposals', state: { proposals: floor.proposals.list() }, roles: floor.roles.choices() });
@@ -37,11 +38,12 @@ export const proposalHandlers = {
     if (proposal?.status === 'approved') {
       for (const task of proposal.tasks) {
         if (task.status === 'assigned' || task.status === 'done') continue;
-        const queueErr = floor.queue.add(task.prompt, proposal.createdBy, proposal.title, task.id === '1' ? proposal.issue : undefined, undefined, undefined, undefined, undefined, task.role, proposal.id, task.id);
+        const queueErr = floor.queue.add(task.prompt, proposal.createdBy, proposal.title, task.id === '1' ? proposal.issue : undefined, undefined, undefined, undefined, proposal.owner, task.role, proposal.id, task.id);
         if (queueErr && !queueErr.includes('already queued')) {
           floor.proposals.fail(msg.proposalId, queueErr);
           return ctx.warn(c, queueErr);
         }
+        floor.proposals.markTask(msg.proposalId, task.id, 'assigned');
       }
     }
     ctx.toFloor(floor, { t: 'proposals', state: { proposals: floor.proposals.list() }, roles: floor.roles.choices() });
