@@ -62,7 +62,7 @@ export class ProposalStore {
   create(input: ProposalInput, roles?: Map<string, RoleSpec>): Proposal | string {
     const err = validateInput(input, roles ?? new Map());
     if (err) return err;
-    const existing = this.list().find((p) => p.sourceKey === input.sourceKey && p.status !== 'rejected' && p.status !== 'failed' && p.status !== 'done');
+    const existing = this.list().find((p) => p.sourceKey === input.sourceKey);
     if (existing) return existing;
     const now = Date.now();
     const proposal: Proposal = {
