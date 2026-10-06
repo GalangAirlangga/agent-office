@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { decompose } from '../../proposal-decomposer.js';
 import type { ProposalClientMsg } from '../../../shared/protocol.js';
 import type { HandlerMap, ViewPieces } from './types.js';
 import { here } from './common.js';
@@ -9,20 +10,22 @@ export const proposalsView: ViewPieces['proposals'] = (_ctx, floor) => ({
 });
 
 export const proposalHandlers = {
-  'proposal.create'(ctx, c, msg) {
+  async 'proposal.create'(ctx, c, msg) {
     const floor = here(ctx, c);
     if (!floor) return;
     if (typeof msg.title !== 'string' || typeof msg.input !== 'string') return ctx.warn(c, 'Proposal title and input are required');
     if (msg.issue !== undefined && (!Number.isSafeInteger(msg.issue) || msg.issue < 1)) return ctx.warn(c, 'Issue must be a positive number');
     const role = typeof msg.role === 'string' && msg.role.trim() ? msg.role.trim() : 'dev';
     const input = msg.input.replace(/\r\n?/g, '\n').trim();
+    const analyzed = await decompose(floor.workers.resolvedAgent ?? 'claude', {}, msg.title, input, floor.roles.all());
+    if (typeof analyzed === 'string') return ctx.warn(c, analyzed);
     const created = floor.proposals.create({
       source: msg.issue === undefined ? 'user' : 'github-issue',
       sourceKey: msg.issue === undefined ? `user:${c.accountId ?? c.id}:${randomBytes(12).toString('hex')}` : `issue:${msg.issue}`,
       ...(msg.issue === undefined ? {} : { issue: msg.issue }),
       title: msg.title,
       input,
-      tasks: [{ prompt: input, role }],
+      tasks: analyzed.tasks,
       createdBy: c.accountId ?? c.peer.name,
       ...(c.accountId ? { owner: c.accountId } : {}),
     }, floor.roles.all());
