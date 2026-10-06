@@ -5,9 +5,9 @@ import type { Ctx } from '../core/context';
 export function openProposals(ctx: Ctx) {
   const list = h('div', {});
   const form = h('form', { style: 'display:grid;gap:8px;margin-bottom:16px' });
-  const title = h('input', { required: true, maxlength: 200, placeholder: 'Proposal title', 'aria-label': 'Proposal title' }) as HTMLInputElement;
+  const title = h('input', { type: 'text', required: true, maxlength: 200, placeholder: 'Proposal title', 'aria-label': 'Proposal title' }) as HTMLInputElement;
   const input = h('textarea', { required: true, maxlength: 20000, rows: 4, placeholder: 'What should PM split and assign?', 'aria-label': 'Proposal task' }) as HTMLTextAreaElement;
-  const role = h('select', { 'aria-label': 'Proposal role' }, ...(store.project?.roleChoices ?? []).map((r) => h('option', { value: r.id }, `${r.id}${r.skills.length ? ` · ${r.skills.map((s) => `/${s}`).join(', ')}` : ''}`))) as HTMLSelectElement;
+  const role = h('select', { class: 'proposal-role', 'aria-label': 'Proposal role' }, ...(store.project?.roleChoices ?? []).map((r) => h('option', { value: r.id }, `${r.id}${r.skills.length ? ` · ${r.skills.map((s) => `/${s}`).join(', ')}` : ''}`))) as HTMLSelectElement;
   const submit = h('button.btn.primary', { type: 'submit' }, 'Create proposal');
   form.append(title, input, role, submit);
   form.addEventListener('submit', (event) => {

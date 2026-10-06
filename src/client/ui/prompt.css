@@ -1,3 +1,7 @@
+/* PM proposal intake field styling: match prompt textareas. */
+.modal select.proposal-role { width: 100%; min-height: 42px; box-sizing: border-box; font: inherit; font-size: 15px; border: 3px solid var(--ink); border-radius: 12px; padding: 8px 12px; background: #fff; color: var(--ink); outline: none; }
+.modal select.proposal-role:focus { border-color: var(--accent); }
+
 /* Send-home dialog: what becomes of a worker's worktree */
 .choices { display: flex; flex-direction: column; gap: 8px; }
 .modal label.choice { display: flex; gap: 10px; align-items: flex-start; margin: 0; padding: 10px 12px; border: 3px solid var(--ink); border-radius: 12px; background: #fff; cursor: pointer; }
