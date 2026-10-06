@@ -353,6 +353,7 @@ export class TaskQueue {
         t.outcome = 'failed';
         t.error = r;
         t.finishedAt = Date.now();
+        if (t.proposalId && t.proposalTaskId) this.events.proposalTask?.(t.proposalId, t.proposalTaskId, 'failed', r);
         this.events.toast(`📋 Couldn't start ${label(t)}: ${r}`, 'error');
         continue;
       }

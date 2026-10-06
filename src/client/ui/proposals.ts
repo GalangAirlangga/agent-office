@@ -19,7 +19,7 @@ export function openProposals(ctx: Ctx) {
   });
   const render = () => {
     const items = store.proposals.proposals.length ? store.proposals.proposals.map((p) => {
-      const action = p.status === 'pending' ? h('footer', {}, (() => {
+      const action = p.status === 'pending' && store.me.admin ? h('footer', {}, (() => {
         const approve = h('button.btn.primary', { type: 'button' }, 'Approve');
         const reject = h('button.btn.danger', { type: 'button' }, 'Reject');
         approve.addEventListener('click', () => ctx.net.send({ t: 'proposal.approve', proposalId: p.id }));

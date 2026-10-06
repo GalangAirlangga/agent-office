@@ -2,10 +2,6 @@ import type { ProposalClientMsg } from '../../../shared/protocol.js';
 import type { HandlerMap, ViewPieces } from './types.js';
 import { here } from './common.js';
 
-export function proposalTaskResult(floor: import('../../floor.js').Floor, proposalId: string, proposalTaskId: string, outcome: 'done' | 'failed', error?: string) {
-  floor.proposals.markTask(proposalId, proposalTaskId, outcome, error);
-}
-
 export const proposalsView: ViewPieces['proposals'] = (_ctx, floor) => ({
   proposals: floor?.proposals.list() ?? [],
   roles: floor?.roles.choices() ?? [],
@@ -16,6 +12,7 @@ export const proposalHandlers = {
     const floor = here(ctx, c);
     if (!floor) return;
     if (typeof msg.title !== 'string' || typeof msg.input !== 'string') return ctx.warn(c, 'Proposal title and input are required');
+    if (msg.issue !== undefined && (!Number.isSafeInteger(msg.issue) || msg.issue < 1)) return ctx.warn(c, 'Issue must be a positive number');
     const role = typeof msg.role === 'string' && msg.role.trim() ? msg.role.trim() : 'dev';
     const input = msg.input.replace(/\r\n?/g, '\n').trim();
     const created = floor.proposals.create({
@@ -45,7 +42,6 @@ export const proposalHandlers = {
           return ctx.warn(c, queueErr);
         }
       }
-      floor.proposals.complete(msg.proposalId);
     }
     ctx.toFloor(floor, { t: 'proposals', state: { proposals: floor.proposals.list() }, roles: floor.roles.choices() });
   },

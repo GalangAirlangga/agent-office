@@ -141,7 +141,8 @@ export class ProposalStore {
 
   /** Proposals created for issue number, used by the polling trigger for idempotency. */
   hasActiveIssue(issue: number): boolean {
-    return this.list().some((p) => p.issue === issue && !['rejected', 'failed', 'done'].includes(p.status));
+    for (const proposal of this.proposals.values()) if (proposal.issue === issue && !['rejected', 'failed', 'done'].includes(proposal.status)) return true;
+    return false;
   }
 
   private persist() {
