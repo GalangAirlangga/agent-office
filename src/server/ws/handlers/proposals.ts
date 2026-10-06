@@ -46,7 +46,6 @@ export const proposalHandlers = {
           if (reserved) return ctx.warn(c, reserved);
           const delivered = floor.workers.prompt(reusable.id, task.prompt, proposal.approvedBy);
           if (!delivered) continue;
-          floor.proposals.markTask(proposal.id, task.id, 'pending', delivered);
         }
         const queueErr = floor.queue.add(task.prompt, proposal.createdBy, proposal.title, task.id === '1' ? proposal.issue : undefined, undefined, undefined, undefined, proposal.owner, task.role, proposal.id, task.id);
         if (queueErr && !queueErr.includes('already queued')) {

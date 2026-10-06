@@ -231,7 +231,7 @@ export class Floor {
           const body = String(issue.body || title).trim().slice(0, 19_700);
           const sourceKey = `issue:${issue.number}:${String(issue.updatedAt || '').slice(0, 100)}`;
           const role = this.roles.names().includes('dev') ? 'dev' : this.roles.names()[0];
-          if (!title || !body || !role || !sourceKey) continue;
+          if (!title || !body || !role) continue;
           const created = this.proposals.create({
             source: 'github-issue',
             sourceKey,
