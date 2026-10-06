@@ -89,5 +89,4 @@ a role is a briefing, never a requirement.
 Open **PM proposals** from the office menu to submit a task and choose a worker role.
 The proposal stays pending until an admin approves it. Approval adds role-aware work to
 the task queue; rejection creates no worker and does not claim a GitHub issue. This manual
-approval flow is enabled now. GitHub issue auto-triggering, worker reuse, and LLM task
-splitting are follow-up work, not automatic behavior in this release.
+approval flow is enabled now. GitHub issue intake is opt-in: add exact label `agent-office:pm` to an open issue. Existing GitHub polling checks active floors every 90 seconds and creates one pending proposal per issue revision. It never claims the issue or starts a worker. One issue keeps one active proposal; edits wait until the current proposal is rejected, failed, or done. Worker reuse and LLM task splitting are follow-up work.

@@ -8,7 +8,7 @@ existing queue with role and proposal metadata, then queue seats worker with mat
 skill brief. Rejected proposals do not spawn workers or claim issues. Proposal state and
 queue linkage survive restart and approval replay does not create duplicate proposal tasks.
 
-GitHub issue polling, automatic worker reuse, and LLM task decomposition remain future work.
+Open GitHub issues labeled `agent-office:pm` also become pending proposals during the existing floor polling cycle. Polling never claims or executes them. One issue has one active proposal, and an edited issue waits for the current proposal to reach a terminal state. Worker reuse and LLM task decomposition remain future work.
 
 
 Everything in the office, room by room. Back to the [README](../README.md).
