@@ -38,6 +38,8 @@ export interface QueueEvents {
   emptied(): void;
   /** What's added after a task that runs in its own worktree ('queue.worktree' in shared/prompts.ts); empty for nothing. */
   worktreeNote?(): string;
+  /** Reports terminal state for proposal-linked tasks. */
+  proposalTask?(proposalId: string, proposalTaskId: string, outcome: 'done' | 'failed', error?: string): void;
 }
 
 export const DEFAULT_MAX_WORKERS = 3;
@@ -86,13 +88,15 @@ export class TaskQueue {
 
   /** Queues a task. With no `provider`, it runs on the office's default worker, model and effort included. */
   /** Queues a task; `owner` is the account adding it, whose sign-ins its worker will run on. */
-  add(prompt: string, by: string, title?: string, issue?: number, provider?: AgentProvider, model?: string, effort?: AgentEffort, owner?: string, role?: string, proposalId?: string): string | undefined {
+  add(prompt: string, by: string, title?: string, issue?: number, provider?: AgentProvider, model?: string, effort?: AgentEffort, owner?: string, role?: string, proposalId?: string, proposalTaskId?: string): string | undefined {
     if (provider === undefined) ({ provider, model, effort } = this.workers.officeDefault ?? { provider: this.workers.defaultProvider });
     if (!isAgentProvider(provider) || (provider === 'custom' && this.workers.defaultProvider !== 'custom')) return 'Unknown agent provider';
     const modelError = validateWorkerModel('agent', provider, model);
     if (modelError) return modelError;
     if (role !== undefined && (!role.trim() || role.length > 64)) return 'Invalid worker role';
     if (proposalId !== undefined && (!proposalId.trim() || proposalId.length > 128)) return 'Invalid proposal id';
+    if (proposalTaskId !== undefined && (!proposalTaskId.trim() || proposalTaskId.length > 128)) return 'Invalid proposal task id';
+    if (proposalId && proposalTaskId && this.tasks.some((t) => t.proposalId === proposalId && t.proposalTaskId === proposalTaskId && t.status !== 'done')) return `Proposal task ${proposalTaskId} is already queued`;
     const effortError = validateWorkerEffort('agent', provider, effort);
     if (effortError) return effortError;
     const clean = prompt.replace(/\r\n?/g, '\n').trim();
@@ -106,6 +110,7 @@ export class TaskQueue {
       effort: takesEffort(provider) ? effort : undefined,
       ...(role ? { role } : {}),
       ...(proposalId ? { proposalId } : {}),
+      ...(proposalTaskId ? { proposalTaskId } : {}),
       issue,
       title: (title?.trim() || firstLine(clean)).slice(0, 120),
       prompt: clean,
@@ -159,7 +164,7 @@ export class TaskQueue {
     if (t.status !== 'done') return 'That task is still on the queue';
     if (t.issue !== undefined && this.tasks.some((x) => x !== t && x.issue === t.issue && x.status !== 'done')) return `Issue #${t.issue} is already on the queue`;
     this.tasks.splice(this.tasks.indexOf(t), 1);
-    const fresh: QueueTask = { id: t.id, provider: t.provider, model: t.model, effort: t.effort, role: t.role, proposalId: t.proposalId, issue: t.issue, title: t.title, prompt: t.prompt, addedBy: t.addedBy, owner: t.owner, addedAt: Date.now(), status: 'queued' };
+    const fresh: QueueTask = { id: t.id, provider: t.provider, model: t.model, effort: t.effort, role: t.role, proposalId: t.proposalId, proposalTaskId: t.proposalTaskId, issue: t.issue, title: t.title, prompt: t.prompt, addedBy: t.addedBy, owner: t.owner, addedAt: Date.now(), status: 'queued' };
     this.tasks.push(fresh);
     this.changed();
     this.pump();
@@ -255,6 +260,9 @@ export class TaskQueue {
       changed = true;
     }
     if (!changed) return;
+    for (const t of this.tasks) {
+      if (t.status === 'done' && t.proposalId && t.proposalTaskId && t.outcome) this.events.proposalTask?.(t.proposalId, t.proposalTaskId, t.outcome === 'done' ? 'done' : 'failed', t.error);
+    }
     this.changed();
     // A task finishing is what empties the queue; removing or clearing tasks doesn't count.
     if (done && this.tasks.every((t) => t.status === 'done')) this.events.emptied();
@@ -394,6 +402,7 @@ export class TaskQueue {
           effort: savedEffort(provider, s.effort),
           role: typeof s.role === 'string' && s.role.trim() ? s.role.trim() : undefined,
           proposalId: typeof s.proposalId === 'string' && s.proposalId ? s.proposalId : undefined,
+          proposalTaskId: typeof s.proposalTaskId === 'string' && s.proposalTaskId ? s.proposalTaskId : undefined,
           issue: typeof s.issue === 'number' ? s.issue : undefined,
           title: s.title,
           prompt: s.prompt,

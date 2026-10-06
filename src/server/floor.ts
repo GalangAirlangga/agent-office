@@ -270,6 +270,10 @@ export class Floor {
         ctx.emit(this, { t: 'gong', why: 'queue' });
       },
       worktreeNote: () => officePrompt(ctx.prompts, 'queue.worktree'),
+      proposalTask: (proposalId, proposalTaskId, outcome, error) => {
+        this.proposals.markTask(proposalId, proposalTaskId, outcome, error);
+        ctx.emit(this, { t: 'proposals', state: { proposals: this.proposals.list() }, roles: this.roles.choices() });
+      },
     });
 
     // Meetings seat their own workers round the meeting room's table and run them round by round.

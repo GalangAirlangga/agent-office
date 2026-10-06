@@ -5,7 +5,7 @@ export interface ProposalTask {
   prompt: string;
   role: string;
   target?: string;
-  status: 'pending' | 'assigned' | 'failed';
+  status: 'pending' | 'assigned' | 'done' | 'failed';
   error?: string;
 }
 

@@ -16,6 +16,8 @@ export interface QueueTask {
   role?: string;
   /** Proposal that approved this task, when PM orchestration created it. */
   proposalId?: string;
+  /** Stable subtask ID, used to make approval replay idempotent. */
+  proposalTaskId?: string;
   /** The GitHub issue it came from, when it did. */
   issue?: number;
   title: string;

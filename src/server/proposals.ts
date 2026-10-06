@@ -11,7 +11,7 @@ export interface ProposalTask {
   prompt: string;
   role: string;
   target?: string;
-  status: 'pending' | 'assigned' | 'failed';
+  status: 'pending' | 'assigned' | 'done' | 'failed';
   error?: string;
 }
 
@@ -112,6 +112,20 @@ export class ProposalStore {
     if (!['approved', 'pending'].includes(proposal.status)) return `Proposal is ${proposal.status}`;
     proposal.status = 'failed';
     proposal.error = error.slice(0, 500);
+    proposal.updatedAt = Date.now();
+    this.persist();
+  }
+
+  markTask(id: string, taskId: string, status: 'assigned' | 'done' | 'failed', error?: string): string | undefined {
+    const proposal = this.proposals.get(id);
+    const task = proposal?.tasks.find((item) => item.id === taskId);
+    if (!proposal || !task) return 'No such proposal task';
+    task.status = status;
+    task.error = error?.slice(0, 500);
+    if (status === 'failed') {
+      proposal.status = 'failed';
+      proposal.error = task.error;
+    } else if (proposal.tasks.every((item) => item.status === 'done')) proposal.status = 'done';
     proposal.updatedAt = Date.now();
     this.persist();
   }
