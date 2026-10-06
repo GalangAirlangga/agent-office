@@ -5,6 +5,7 @@ import { AGENT_PROVIDERS, takesEffort, takesModel } from '../../shared/providers
 import { Worktrees, workspaceOf, type WorktreeCleanup, type WorktreeState } from '../worktrees.js';
 import { DESK_BY_ID, STATION_AGENT, deskBuilt } from '../../shared/layout.js';
 import { stationBrief } from '../stations.js';
+import { Roles, seedRoles, briefedPrompt } from '../roles.js';
 import type { PromptSource } from '../prompts.js';
 import type { GhAs } from '../signins.js';
 import type { ServiceOwner } from '../services.js';
@@ -71,7 +72,8 @@ export class WorkerManager {
   private saveTimer: NodeJS.Timeout;
   /** How many rows the floor's back office is built out: its desks past that aren't there to hire at (see WING). */
   wing: () => number = () => 0;
-
+  /** The roles a worker can be hired as, and what each tells its prompt (see roles.ts). */
+  private roles: Roles;
   constructor(
     private dir: string,
     dataDir: string,
@@ -92,6 +94,7 @@ export class WorkerManager {
     this.defaultProvider = configuredProvider(agentCmd);
     this.trees = new Worktrees(dir);
     this.statePath = path.join(dataDir, 'workers.json');
+    this.roles = seedRoles(dataDir);
     // bin/office-workers.js is also the office's MCP server, for the agents that take one.
     const floor: ProviderFloor = { dataDir, mcpScript: binScript('office-workers.js'), dshProfile };
     for (const p of AGENT_PROVIDERS) this.setups[p] = PROVIDERS[p].prepare?.(floor);
@@ -214,12 +217,8 @@ export class WorkerManager {
     return false;
   }
 
-  /**
-   * Hires a worker at a desk. `meeting` seats one at the meeting room's table instead, for that meeting
-   * (see meetings.ts), in the meeting's own worktree, which everyone at the table shares. `repos` are
-   * other floors' repositories a worker in its own worktree works in too (see makeWorkspace).
-   */
-  spawn(deskId: string, by: string, prompt?: string, worktree = false, kind: WorkerKind = 'agent', provider?: AgentProvider, model?: string, effort?: AgentEffort, meeting?: { id: string; worktree?: WorkerInfo['worktree'] }, owner?: string, repos: RepoSource[] = [], via?: 'herald'): WorkerInfo | string {
+  /** Hires a worker at a desk. `meeting` seats one at the meeting room's table instead (see meetings.ts). `repos` are other floors' repositories a worker in its own worktree works in too. */
+  spawn(deskId: string, by: string, prompt?: string, worktree = false, kind: WorkerKind = 'agent', provider?: AgentProvider, model?: string, effort?: AgentEffort, meeting?: { id: string; worktree?: WorkerInfo['worktree'] }, owner?: string, repos: RepoSource[] = [], via?: 'herald', role?: string): WorkerInfo | string {
     // Nobody picked (a board agent, say): the office's default worker, model and effort included.
     if (kind === 'agent' && provider === undefined) ({ provider, model, effort } = this.officeDefault);
     const selectedProvider = kind === 'agent' ? provider : undefined;
@@ -239,6 +238,7 @@ export class WorkerManager {
     if (repos.length > MAX_REPOS) return `A worker can take on at most ${MAX_REPOS} other repositories`;
     if (kind === 'shell' && provider !== undefined) return 'Shell workers do not have an agent provider';
     if (kind === 'agent' && selectedProvider === 'custom' && this.defaultProvider !== 'custom') return 'Custom is not the configured agent provider';
+    if (role !== undefined && (typeof role !== 'string' || !role.trim() || role.length > 64)) return 'role is a name from roles.json, up to 64 characters';
     if (kind === 'agent') {
       const paused = this.ledger.hiringPaused;
       if (paused) return paused;
@@ -255,7 +255,7 @@ export class WorkerManager {
     let others: WorkerRepo[] | undefined;
     if (worktree) {
       const slug = `${name.toLowerCase()}-${id.slice(0, 4)}`;
-      const made = repos.length ? this.makeWorkspace(slug, repos) : this.trees.create(slug);
+      const made = repos.length ? this.worktrees.makeWorkspace(slug, repos) : this.trees.create(slug);
       if (typeof made === 'string') return made;
       if ('repos' in made) {
         ({ worktree: wt, repos: others } = made);
@@ -289,19 +289,19 @@ export class WorkerManager {
       viewerIds: [],
       activity: prompt ? truncate(prompt, 80) : undefined,
       meeting: meeting?.id,
+      ...(kind === 'agent' && role?.trim() ? { role: role.trim() } : {}),
     };
     const w = newWorker(info, newTracker());
     w.owner = owner;
     this.workers.set(id, w);
     if (info.prompt) this.tasks.notePrompt(w, info.prompt);
-    // A board agent is told what it's there for ahead of its first request (which is what shows).
-    this.launch(w, seat.station && info.prompt ? `${stationBrief(seat.station, this.prompts)}\n\n${info.prompt}` : info.prompt, undefined);
+    // A board agent gets its brief first, a role worker its role's (see roles.ts); without either, the prompt as is.
+    this.launch(w, briefedPrompt(this.roles, info.role, info.prompt, seat.station && info.prompt ? stationBrief(seat.station, this.prompts) : undefined), undefined);
     this.persist();
     return info;
   }
 
-  /** The workspace of a worker across repositories (see WorkerTrees.makeWorkspace). */
-  private makeWorkspace(slug: string, repos: RepoSource[]): { worktree: NonNullable<WorkerInfo['worktree']>; repos: WorkerRepo[]; notes: string[] } | string {
+  makeWorkspace(slug: string, repos: RepoSource[]): { worktree: NonNullable<WorkerInfo['worktree']>; repos: WorkerRepo[]; notes: string[] } | string {
     return this.worktrees.makeWorkspace(slug, repos);
   }
 

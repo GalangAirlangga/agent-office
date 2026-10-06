@@ -21,7 +21,9 @@ export interface PromptOptions {
   providerOption?: boolean;
   /** Other floors' projects a new worker in its own worktree can work in too (see WorkerInfo.repos). */
   repoOptions?: { id: string; name: string }[];
-  onSubmit(text: string, opts: { worktree: boolean; provider?: AgentProvider; model?: string; effort?: AgentEffort; repos: string[] }): void;
+  /** Role choices from the project's roles.json (see Roles.choices), for the hire dialog dropdown. */
+  roleOptions?: { id: string; skills: string[] }[];
+  onSubmit(text: string, opts: { worktree: boolean; provider?: AgentProvider; model?: string; effort?: AgentEffort; repos: string[]; role: string | undefined }): void;
 }
 
 const WT_KEY = 'agent-office.worktree';
@@ -69,13 +71,22 @@ export function openPrompt(opts: PromptOptions) {
     : null;
   const repos = repoPicker(opts.worktreeOption ? opts.repoOptions : undefined, wtBox);
   const provider: ProviderPicker | null = opts.providerOption ? providerPicker(store.project, 'prompt-provider') : null;
+  // The roles this project hires by, if it has any: picking one tells the worker what it's for.
+  const roleChoices = opts.roleOptions ?? [];
+  const roleSelect =
+    roleChoices.length > 0
+      ? (() => {
+          const sel = h('select', { 'aria-label': 'Role', style: 'margin-top:10px;width:100%' }, h('option', { value: '' }, 'No role (just the prompt)'), ...roleChoices.map((r) => h('option', { value: r.id }, r.skills.length ? `${r.id} · ${r.skills.map((s) => `/${s}`).join(', ')}` : r.id))) as HTMLSelectElement;
+          return { element: h('label', { style: 'display:block;font-weight:700;margin-top:10px' }, '🎭 Role', sel), sel };
+        })()
+      : null;
   const submit = h('button.btn.primary', { type: 'submit' }, opts.submitLabel ?? 'Send ✨');
   const cancel = h('button.btn', { type: 'button' }, 'Cancel');
   const form = h(
     'form.modal',
     { role: 'dialog', 'aria-label': opts.title },
     h('header', {}, h('h2', {}, opts.title)),
-    h('div.body', {}, opts.warning ? h('p.setting-note.bad', { style: 'margin:0 0 10px', role: 'alert' }, opts.warning) : null, opts.subtitle ? h('p', { style: 'margin:0 0 10px;font-weight:700;color:var(--muted)' }, opts.subtitle) : null, dictateField(ta), provider?.element ?? null, wtRow, repos.element),
+    h('div.body', {}, opts.warning ? h('p.setting-note.bad', { style: 'margin:0 0 10px', role: 'alert' }, opts.warning) : null, opts.subtitle ? h('p', { style: 'margin:0 0 10px;font-weight:700;color:var(--muted)' }, opts.subtitle) : null, dictateField(ta), provider?.element ?? null, wtRow, repos.element, roleSelect?.element ?? null),
     h('footer', {}, h('span.grow', {}, 'Enter to send · Shift+Enter for a new line'), cancel, submit),
   ) as HTMLFormElement;
   form.noValidate = true;
@@ -98,7 +109,7 @@ export function openPrompt(opts: PromptOptions) {
       }
     }
     const worktree = !!opts.worktreeOption && wtBox.checked;
-    opts.onSubmit(text, { worktree, provider: provider?.value(), model: provider?.model(), effort: provider?.effort(), repos: worktree ? repos.value() : [] });
+    opts.onSubmit(text, { worktree, provider: provider?.value(), model: provider?.model(), effort: provider?.effort(), repos: worktree ? repos.value() : [], role: roleSelect ? roleSelect.sel.value || undefined : undefined });
   };
   form.addEventListener('submit', (e) => {
     e.preventDefault();

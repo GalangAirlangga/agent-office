@@ -140,6 +140,8 @@ export interface HireRequest {
   worktree?: boolean;
   desk?: string;
   issue?: number;
+  /** A role name from the role registry (see roles.ts); applied as skill brief in the prompt. */
+  role?: string;
 }
 
 export function readHireRequest(body: unknown, providers: AgentProvider[]): HireRequest | string {
@@ -155,6 +157,9 @@ export function readHireRequest(body: unknown, providers: AgentProvider[]): Hire
   const seat = typeof b.desk === 'string' ? DESK_BY_ID.get(b.desk) : undefined;
   if (b.desk !== undefined && (!seat || seat.station || seat.room)) return "desk is a desk or bean bag's id, like desk-3";
   if (b.issue !== undefined && !(Number.isSafeInteger(b.issue) && (b.issue as number) > 0)) return 'issue is an issue number';
+  // A role names a brief in the project's roles.json (see roles.ts). One this project doesn't have
+  // is just no briefing: hiring never depends on it.
+  if (b.role !== undefined && (typeof b.role !== 'string' || !b.role.trim() || b.role.length > 64)) return 'role is a name from roles.json, up to 64 characters';
   return {
     prompt,
     ...(b.provider !== undefined ? { provider: b.provider as AgentProvider } : {}),
@@ -163,6 +168,7 @@ export function readHireRequest(body: unknown, providers: AgentProvider[]): Hire
     ...(typeof b.worktree === 'boolean' ? { worktree: b.worktree } : {}),
     ...(typeof b.desk === 'string' ? { desk: b.desk } : {}),
     ...(b.issue !== undefined ? { issue: b.issue as number } : {}),
+    ...(typeof b.role === 'string' && b.role.trim() ? { role: b.role.trim() } : {}),
   };
 }
 

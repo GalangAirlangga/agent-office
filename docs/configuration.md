@@ -62,3 +62,24 @@ agent-office tunnel [office@address | url] [--port <n>] [--office-port <n>] [--n
   the worker stops it. Given an SSH address it opens the tunnel to the office too.
   See docs/tunnel.md.
 ```
+
+## Worker roles
+
+Each floor keeps a role registry in its checkout's `.agent-office/roles.json`: a name
+(like `qa`, `dev`, `design`), the skill brief its prompt starts with, and the gstack
+skills it works by (`/qa`, `/design-review`, …). The file is written with a starter
+set the first time the office looks for one, and it's kept out of git, so whoever
+works in the project edits the roles to say what each tells its worker:
+
+```json
+{
+  "qa": {
+    "brief": "You are the QA worker: you check that a change does what it says and nothing more. Drive the running app in a real browser, read the console, and report what breaks.",
+    "skills": ["qa", "qa-only"]
+  }
+}
+```
+
+Pick a role in the hire dialog and the worker starts with that role's brief before its
+task. A floor with no registry (or a role it doesn't have) hires exactly as it used to:
+a role is a briefing, never a requirement.

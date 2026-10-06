@@ -24,6 +24,8 @@ export interface ProjectInfo {
   agentCmd: string;
   defaultProvider: AgentProvider;
   agentProviders: AgentProvider[];
+  /** The roles this project's .agent-office/roles.json exposes, for the hire dialog's role dropdown. */
+  roleChoices?: { id: string; skills: string[] }[];
 }
 
 /**
