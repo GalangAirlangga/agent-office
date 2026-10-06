@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import type { ProposalClientMsg } from '../../../shared/protocol.js';
 import type { HandlerMap, ViewPieces } from './types.js';
 import { here } from './common.js';
@@ -17,7 +18,7 @@ export const proposalHandlers = {
     const input = msg.input.replace(/\r\n?/g, '\n').trim();
     const created = floor.proposals.create({
       source: msg.issue === undefined ? 'user' : 'github-issue',
-      sourceKey: msg.issue === undefined ? `user:${c.accountId ?? c.id}:${input}` : `issue:${msg.issue}`,
+      sourceKey: msg.issue === undefined ? `user:${c.accountId ?? c.id}:${randomBytes(12).toString('hex')}` : `issue:${msg.issue}`,
       ...(msg.issue === undefined ? {} : { issue: msg.issue }),
       title: msg.title,
       input,
