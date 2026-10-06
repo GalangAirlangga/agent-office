@@ -38,12 +38,23 @@ export const proposalHandlers = {
     if (proposal?.status === 'approved') {
       for (const task of proposal.tasks) {
         if (task.status === 'assigned' || task.status === 'done') continue;
+        const reusable = floor.workers.list()
+          .filter((worker) => worker.kind === 'agent' && worker.status === 'idle' && !worker.meeting && worker.role === task.role && floor.workers.ownerOf(worker.id) === proposal.owner)
+          .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id))[0];
+        if (reusable) {
+          const reserved = floor.proposals.assignTask(proposal.id, task.id, reusable.id);
+          if (reserved) return ctx.warn(c, reserved);
+          const delivered = floor.workers.prompt(reusable.id, task.prompt, proposal.approvedBy);
+          if (!delivered) continue;
+          floor.proposals.markTask(proposal.id, task.id, 'pending', delivered);
+        }
         const queueErr = floor.queue.add(task.prompt, proposal.createdBy, proposal.title, task.id === '1' ? proposal.issue : undefined, undefined, undefined, undefined, proposal.owner, task.role, proposal.id, task.id);
         if (queueErr && !queueErr.includes('already queued')) {
           floor.proposals.fail(msg.proposalId, queueErr);
           return ctx.warn(c, queueErr);
         }
-        floor.proposals.markTask(msg.proposalId, task.id, 'assigned');
+        const current = floor.proposals.list().find((item) => item.id === msg.proposalId)?.tasks.find((item) => item.id === task.id);
+        if (current?.status === 'pending') floor.proposals.markTask(msg.proposalId, task.id, 'assigned');
       }
     }
     ctx.toFloor(floor, { t: 'proposals', state: { proposals: floor.proposals.list() }, roles: floor.roles.choices() });

@@ -119,11 +119,23 @@ export class ProposalStore {
     this.persist();
   }
 
-  markTask(id: string, taskId: string, status: 'assigned' | 'done' | 'failed', error?: string): string | undefined {
+  assignTask(id: string, taskId: string, workerId: string): string | undefined {
+    const proposal = this.proposals.get(id);
+    const task = proposal?.tasks.find((item) => item.id === taskId);
+    if (!proposal || !task) return 'No such proposal task';
+    if (task.status !== 'pending') return task.target === workerId ? undefined : `Proposal task is ${task.status}`;
+    task.target = workerId;
+    task.status = 'assigned';
+    proposal.updatedAt = Date.now();
+    this.persist();
+  }
+
+  markTask(id: string, taskId: string, status: 'pending' | 'assigned' | 'done' | 'failed', error?: string): string | undefined {
     const proposal = this.proposals.get(id);
     const task = proposal?.tasks.find((item) => item.id === taskId);
     if (!proposal || !task) return 'No such proposal task';
     task.status = status;
+    if (status === 'pending') task.target = undefined;
     task.error = error?.slice(0, 500);
     if (status === 'failed') {
       proposal.status = 'failed';
@@ -131,6 +143,13 @@ export class ProposalStore {
     } else if (proposal.tasks.every((item) => item.status === 'done')) proposal.status = 'done';
     proposal.updatedAt = Date.now();
     this.persist();
+  }
+
+  workerTask(id: string, workerId: string, status: 'done' | 'failed', error?: string): string | undefined {
+    const proposal = this.proposals.get(id);
+    const task = proposal?.tasks.find((item) => item.target === workerId && item.status === 'assigned');
+    if (!proposal || !task) return 'No such assigned proposal task';
+    return this.markTask(id, task.id, status, error);
   }
 
   complete(id: string): string | undefined {

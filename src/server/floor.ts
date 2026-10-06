@@ -188,6 +188,10 @@ export class Floor {
           this.queue?.onWorker(worker);
           this.meetings?.onWorker(worker);
           this.dog.onWorker(worker);
+          if (worker.status === 'done' || worker.status === 'exited' || worker.status === 'offline') {
+            for (const proposal of this.proposals.list()) this.proposals.workerTask(proposal.id, worker.id, worker.status === 'done' ? 'done' : 'failed');
+            ctx.emit(this, { t: 'proposals', state: { proposals: this.proposals.list() }, roles: this.roles.choices() });
+          }
           ctx.workerChanged(this, worker);
           // Its turn ended, or whoever had its terminal open closed it: it may be free to go now.
           this.sendLandedHome();
